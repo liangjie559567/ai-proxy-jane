@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Proxy Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            overflow: hidden;
+            padding: 0 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .login-form, .config-form, .proxy-info, .user-management {
+            background: #fff;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"], input[type="number"], input[type="password"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+        }
+        button {
+            display: inline-block;
+            background: #333;
+            color: #fff;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #555;
+        }
+        #proxyStatus {
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AI Proxy Dashboard</h1>
+        
+        <div id="loginSection" class="login-form">
+            <h2>Login</h2>
+            <form id="loginForm">
+                <label for="username">Username:</label>
+                <input type="text" id="username" required>
+                
+                <label for="password">Password:</label>
+                <input type="password" id="password" required>
+                
+                <button type="submit">Login</button>
+            </form>
+        </div>
+
+        <div id="dashboardSection" style="display:none;">
+            <div class="config-form">
+                <h2>Configuration</h2>
+                <form id="configForm">
+                    <label for="proxyPort">Proxy Port:</label>
+                    <input type="number" id="proxyPort" name="PROXY_PORT" required>
+                    
+                    <label for="proxyList">Proxy List (comma-separated):</label>
+                    <input type="text" id="proxyList" name="PROXY_LIST" required>
+                    
+                    <label for="proxyScraperUrls">Proxy Scraper URLs (comma-separated):</label>
+                    <input type="text" id="proxyScraperUrls" name="PROXY_SCRAPER_URLS" required>
+                    
+                    <label for="proxyConcurrencyLimit">Proxy Concurrency Limit:</label>
+                    <input type="number" id="proxyConcurrencyLimit" name="PROXY_CONCURRENCY_LIMIT" required>
+                    
+                    <button type="submit">Update Configuration</button>
+                </form>
+            </div>
+            
+            <div class="proxy-info">
+                <h2>Proxy Pool Status</h2>
+                <div id="proxyStatus"></div>
+            </div>
+
+            <div class="user-management">
+                <h2>User Management</h2>
+                <form id="userForm">
+                    <label for="newUsername">New Username:</label>
+                    <input type="text" id="newUsername" required>
+                    
+                    <label for="newPassword">New Password:</label>
+                    <input type="password" id="newPassword" required>
+                    
+                    <button type="submit">Update User</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isLoggedIn = false;
+
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            fetch('/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    isLoggedIn = true;
+                    document.getElementById('loginSection').style.display = 'none';
+                    document.getElementById('dashboardSection').style.display = 'block';
+                    loadDashboard();
+                } else {
+                    alert('Login failed. Please try again.');
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            });
+        });
+
+        function loadDashboard() {
+            // Fetch current configuration
+            fetch('/api/config')
+                .then(response => response.json())
+                .then(config => {
+                    document.getElementById('proxyPort').value = config.PROXY_PORT;
+                    document.getElementById('proxyList').value = config.PROXY_LIST.join(',');
+                    document.getElementById('proxyScraperUrls').value = config.PROXY_SCRAPER_URLS.join(',');
+                    document.getElementById('proxyConcurrencyLimit').value = config.PROXY_CONCURRENCY_LIMIT;
+                });
+
+            // Update proxy status
+            updateProxyStatus();
+        }
+
+        // Update configuration
+        document.getElementById('configForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const config = Object.fromEntries(formData.entries());
+            
+            fetch('/api/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(config),
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Configuration updated successfully');
+            })
+            .catch((error) => {
+                alert('Error updating configuration');
+            });
+        });
+
+        // Update user
+        document.getElementById('userForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const newUsername = document.getElementById('newUsername').value;
+            const newPassword = document.getElementById('newPassword').value;
+            
+            fetch('/api/update-user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ newUsername, newPassword }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('User updated successfully');
+                } else {
+                    alert('Failed to update user');
+                }
+            })
+            .catch((error) => {
+                alert('Error updating user');
+            });
+        });
+
+        // Fetch and display proxy pool status
+        function updateProxyStatus() {
+            fetch('/api/proxy-status')
+                .then(response => response.json())
+                .then(status => {
+                    const statusHtml = `
+                        <table>
+                            <tr>
+                                <th>Total Proxies</th>
+                                <td>${status.totalProxies}</td>
+                            </tr>
+                            <tr>
+                                <th>Active Proxies</th>
+                                <td>${status.activeProxies}</td>
+                            </tr>
+                            <tr>
+                                <th>Current Concurrency</th>
+                                <td>${status.currentConcurrency}</td>
+                            </tr>
+                            <tr>
+                                <th>OpenAI Proxy Address</th>
+                                <td>${status.openaiProxyAddress}</td>
+                            </tr>
+                            <tr>
+                                <th>Claude Proxy Address</th>
+                                <td>${status.claudeProxyAddress}</td>
+                            </tr>
+                        </table>
+                    `;
+                    document.getElementById('proxyStatus').innerHTML = statusHtml;
+                });
+        }
+
+        // Update proxy status every 5 seconds
+        setInterval(updateProxyStatus, 5000);
+    </script>
+</body>
+</html>
